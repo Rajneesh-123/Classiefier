@@ -1,0 +1,193 @@
+
+
+from sklearn.metrics import confusion_matrix, accuracy_score
+import pandas as pd
+import numpy as np
+from sklearn.model_selection import train_test_split
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.decomposition import PCA
+import matplotlib.pyplot as plt
+
+print("Question no 1")
+read_file = pd.read_csv("C:\\Users\\ASUS\\Desktop\\SteelPlateFaults-2class.csv")
+arr1 = read_file['Class']
+arr2 = read_file.copy()
+[TRAIN_X, TEST_X, TRAIN_Y, TEST_Y] = train_test_split(
+    arr2, arr1, test_size=0.3, random_state=42, shuffle=True)
+
+accuracy_Q1_K = 1
+accuracy_Q1_value = 0
+TRAIN_X.to_csv("C:\\Users\\ASUS\\Desktop\\SteelPlateFaults-train.csv")
+TEST_X.to_csv("C:\\Users\\ASUS\\Desktop\\SteelPlateFaults-test.csv")
+TRAIN_X = TRAIN_X.drop('Class', axis=1)
+TEST_X = TEST_X.drop('Class', axis=1)
+
+def Ques_1(K):
+    global accuracy_Q1_K
+    global accuracy_Q1_value
+
+    VAR = KNeighborsClassifier(n_neighbors=K)
+    VAR.fit(TRAIN_X, TRAIN_Y)
+    PRED_Y = VAR.predict(TEST_X)
+
+    print("CONFUSION MATRIX OF K", K)
+    var1 = confusion_matrix(TEST_Y.to_numpy(), PRED_Y)
+    print(var1)
+    print()
+
+    var2 = accuracy_score(TEST_Y.to_numpy(), PRED_Y)
+    print("CLASIFICATION ACCURACY K", K, " is ", var2)
+    print()
+
+    if var2 > accuracy_Q1_value:
+        accuracy_Q1_K = K
+        accuracy_Q1_value = var2
+
+
+DICT_MAX = TRAIN_X.max()
+DICT_MIN = TRAIN_X.min()
+SUB = DICT_MAX - DICT_MIN
+df2_train = pd.DataFrame()
+df2_test = pd.DataFrame()
+
+Ques_1(1)
+Ques_1(3)
+Ques_1(5)
+
+
+print("HIGHEST ACCURACY OF K", accuracy_Q1_K)
+print("HIGHEST ACCURACY VALUE: ", accuracy_Q1_value)
+
+
+
+
+for col in TRAIN_X:
+    if SUB[col] != 0:
+        df2_train[col] = (TRAIN_X[col] - DICT_MIN[col]) / SUB[col]
+    else:
+        df2_train[col] = TRAIN_X[col]
+
+
+for col in TEST_X:
+    if SUB[col] != 0:
+        df2_test[col] = (TEST_X[col] - DICT_MIN[col]) / SUB[col]
+    else:
+        df2_test[col] = TEST_X[col]
+
+df2_train.to_csv("C:\\Users\\ASUS\\Desktop\\SteelPlateFaults-train-Normalised.csv")
+df2_test.to_csv("C:\\Users\\ASUS\\Desktop\\SteelPlateFaults-test-normalised.csv")
+
+
+df2_test[df2_test.isin([np.nan, np.inf, -np.inf]).any(1)]
+
+highest_accuracy_Q2_K = 1
+highest_accuracy_Q2_value = 0
+
+
+def Ques_2(K):
+    global highest_accuracy_Q2_K
+    global highest_accuracy_Q2_value
+
+    neigh = KNeighborsClassifier(n_neighbors=K)
+    neigh.fit(df2_train, TRAIN_Y)
+    Y_predict = neigh.predict(df2_test)
+
+
+    print("CONFUSION MATRIX", K)
+    CM = confusion_matrix(TEST_Y.to_numpy(), Y_predict)
+    print(CM)
+    print()
+    print()
+
+    CA = accuracy_score(TEST_Y.to_numpy(), Y_predict)
+    print("CLASSIFICATION ACCURACY K", K, " is ", CA)
+    print()
+    print()
+
+    if CA > highest_accuracy_Q2_value:
+        highest_accuracy_Q2_K = K
+        highest_accuracy_Q2_value = CA
+
+
+Ques_2(1)
+Ques_2(3)
+Ques_2(5)
+
+print("HIGHEST ACCURACY OF K ", highest_accuracy_Q2_K)
+print("HIGHEST VALUE IS: ", highest_accuracy_Q2_value)
+print()
+print()
+
+
+
+print("QUESTION NO 3")
+
+train = pd.read_csv("C:\\Users\\ASUS\\Desktop\\SteelPlateFaults-train.csv")
+TEST_X = pd.read_csv("C:\\Users\\ASUS\\Desktop\\SteelPlateFaults-test.csv")
+TEST_X = TEST_X.drop('TypeOfSteel_A300',axis = 1)
+TEST_X = TEST_X.drop('TypeOfSteel_A400',axis = 1)
+TEST_X = TEST_X.drop('X_Minimum',axis = 1)
+TEST_X = TEST_X.drop('Y_Minimum',axis = 1)
+train = train.drop('TypeOfSteel_A300',axis = 1)
+train = train.drop('TypeOfSteel_A400',axis = 1)
+train = train.drop('X_Minimum',axis = 1)
+train = train.drop('Y_Minimum',axis = 1)
+train = train[train.columns[1:]]
+TEST_X = TEST_X[TEST_X.columns[1:]]
+TEST_X = TEST_X[TEST_X.columns[:-1]]
+
+train0 = train[train["Class"] == 0]
+train1 = train[train["Class"] == 1]
+xtrain0 = train0[train0.columns[:-1]]
+xtrain1 = train1[train1.columns[:-1]]
+
+cov0 = np.cov(xtrain0.T)
+cov1 = np.cov(xtrain1.T)
+
+mean0 = np.mean(xtrain0)
+mean1 = np.mean(xtrain1)
+
+cov0
+
+
+def likelihood(A, B, C):
+    AN = np.dot((A-B).T, np.linalg.inv(C))
+    inside = -0.5*np.dot(AN, (-B))
+    ex = np.exp(inside)
+    return(ex/((2*np.pi)**5 * (np.linalg.det(C))**0.5))
+
+
+prior0 = len(train0)/len(train)
+prior1 = len(train1)/len(train)
+
+lst = []
+for i, row in TEST_X.iterrows():
+    st = likelihood(row, mean0, cov0) * prior0
+    st1 = likelihood(row, mean1, cov1) * prior1
+    if st > st1:
+        lst.append(0)
+    else:
+        lst.append(1)
+
+BAYES = accuracy_score(TEST_Y, lst)
+
+print("CONFUSION MATRIX", confusion_matrix(TEST_Y, lst))
+print("ACCURACY", BAYES)
+print()
+print()
+print("QUESTION 4")
+print("KNN")
+print(accuracy_Q1_value)
+print()
+print()
+print("KNN Normalised")
+print(highest_accuracy_Q2_value)
+print()
+print()
+print("Bayes Classifier")
+print(BAYES)
+print()
+print()
+print("HIGHEST ACCURACY KNN",highest_accuracy_Q2_value)
+print()
+
